@@ -120,23 +120,36 @@ final class SnowView: NSView {
 
     // MARK: wind
     private func startWindAnimations() {
+        // In startWindAnimations()
         let gustValues = makeNoiseGusts(samples: 64, amp: currentWindAmp)
         for e in emitters {
             let gusts = CAKeyframeAnimation(keyPath: "emitterCells.snow.xAcceleration")
             gusts.values = gustValues
-            gusts.duration = 16; gusts.calculationMode = .cubic; gusts.repeatCount = .infinity
+            gusts.duration = 16
+            gusts.calculationMode = .linear   // was .cubic
+            gusts.repeatCount = .infinity
             e.add(gusts, forKey: "wind")
         }
     }
 
+    // Replace the old one
     private func makeNoiseGusts(samples: Int = 64, amp: CGFloat = 6) -> [CGFloat] {
-        var v: [CGFloat] = []; var x: CGFloat = 0
+        var v: [CGFloat] = []
+        var x: CGFloat = .random(in: 0...1000) // random phase so layers don’t sync + avoid pattern bias
         for _ in 0..<samples {
-            let n = sin(x) + 0.5*sin(2.3*x + 1.7) + 0.25*sin(4.7*x + 3.1)
-            v.append((n/1.75) * amp); x += 0.18
+            let n = sin(x) + 0.5 * sin(2.3 * x + 1.7) + 0.25 * sin(4.7 * x + 3.1)
+            v.append(n)
+            x += 0.18
         }
-        return v
+        // remove DC (average) so there’s no long-term push
+        let mean = v.reduce(0, +) / CGFloat(v.count)
+        var z = v.map { $0 - mean }
+        // normalize to [-amp, +amp]
+        let maxAbs = z.map { abs($0) }.max() ?? 1
+        if maxAbs > 0 { z = z.map { ($0 / maxAbs) * amp } }
+        return z
     }
+
 
     // MARK: cutoff mask
     func setCutoff(_ points: CGFloat?) { cutoffPoints = points }
