@@ -1,9 +1,9 @@
 //
-//  SnowView.swift - Enhanced with true mid-fall disappearing flakes
+//  SnowView.swift - Enhanced with natural horizontal distribution
 //  Snowflakes
 //
 //  Created by Andrew Sereda on 22.10.2025.
-//  Enhanced with random mid-fall disappearing logic that actually removes flakes
+//  Enhanced with better horizontal spreading and natural emission patterns
 //
 
 import Cocoa
@@ -210,7 +210,9 @@ final class SnowView: NSView {
 
     private func setupAllEmitters() {
         for e in emitters {
-            e.emitterShape = .line; e.emitterMode = .surface
+            // FIXED: Change emitter configuration for better horizontal distribution
+            e.emitterShape = .line
+            e.emitterMode = .surface  // This ensures particles are emitted across the entire line
             e.seed = UInt32.random(in: 0...UInt32.max)
             e.renderMode = .unordered
         }
@@ -220,10 +222,16 @@ final class SnowView: NSView {
 
     private func layoutEmitters() {
         let top = bounds.maxY
-        let size = CGSize(width: bounds.width, height: 1)
+        // FIXED: Make the emission line span the full width + extra for off-screen spawning
+        let extraWidth: CGFloat = 200  // Spawn flakes off-screen for more natural entry
+        let emissionWidth = bounds.width + (extraWidth * 2)
+        let size = CGSize(width: emissionWidth, height: 1)
+        
         for e in emitters {
-            e.frame = bounds; e.emitterSize = size
-            e.emitterPosition = CGPoint(x: bounds.midX, y: top + 12)
+            e.frame = bounds
+            e.emitterSize = size
+            // FIXED: Center the emission line but make it wider than the screen
+            e.emitterPosition = CGPoint(x: bounds.midX, y: top + 32)  // Start higher up
         }
     }
 
@@ -364,7 +372,7 @@ final class SnowView: NSView {
         case quickDisappearing
     }
 
-    // ENHANCED: Create cells with specific lifetime behaviors
+    // ENHANCED: Create cells with better horizontal distribution
     private func makeCell(size: CGFloat, image: CGImage, xAccel: CGFloat, yAccel: CGFloat,
                           alphaSpeed: CGFloat, spinBase: CGFloat, spinRange: CGFloat, spreadDeg: CGFloat,
                           baseWindVel: CGFloat, lifetime: CGFloat, lifetimeRange: CGFloat,
@@ -377,47 +385,53 @@ final class SnowView: NSView {
         c.lifetime = Float(lifetime)
         c.lifetimeRange = Float(lifetimeRange)
         
-        c.velocity = 24; c.velocityRange = 16
+        // FIXED: Enhanced velocity for better horizontal distribution
+        c.velocity = 24
+        c.velocityRange = 24  // Increased range for more horizontal variety
         
         // ENHANCED: Better wind angle calculation for dramatic ranges
         if abs(baseWindVel) > 0.1 {
-            let windAngle = min(abs(baseWindVel) * 0.02, 0.8) * (baseWindVel < 0 ? -1 : 1)  // Increased max angle
+            let windAngle = min(abs(baseWindVel) * 0.02, 0.8) * (baseWindVel < 0 ? -1 : 1)
             c.emissionLongitude = -.pi/2 + windAngle
-            c.velocityRange = max(20, abs(baseWindVel) * 0.5)  // Dynamic velocity range
+            c.velocityRange = max(30, abs(baseWindVel) * 0.5)  // Increased for better spread
         } else {
             c.emissionLongitude = -.pi/2
         }
         
-        c.yAcceleration = yAccel; c.xAcceleration = xAccel
+        c.yAcceleration = yAccel
+        c.xAcceleration = xAccel
         
-        // ENHANCED: Handle 0-60 degree spread range
-        let spread = max(0, min(.pi * 0.7, spreadDeg * .pi / 180))  // Allow up to ~126 degrees max
-        c.emissionRange = spread
+        // FIXED: Enhanced emission range for better horizontal spread
+        let baseSpread = max(0, min(.pi * 0.7, spreadDeg * .pi / 180))
+        // Add extra horizontal spread regardless of user setting for natural distribution
+        let enhancedSpread = max(baseSpread, .pi * 0.15)  // Minimum 27° spread
+        c.emissionRange = enhancedSpread
         
-        // ENHANCED: Better scale handling for 0.3-2.5 range
+        // ENHANCED: Better scale handling with more variation
         let baseScale = size / 180.0
         c.scale = baseScale
-        c.scaleRange = min(0.1, baseScale * 0.3)  // Scale range proportional to size
+        c.scaleRange = min(0.15, baseScale * 0.4)  // Increased scale variation
         c.scaleSpeed = -0.002
         
         // Enhanced alpha behavior based on cell type
         switch cellType {
         case .normal:
-            c.alphaRange = 0.15
+            c.alphaRange = 0.2  // Slightly increased for more variation
             c.alphaSpeed = Float(alphaSpeed)
         case .earlyDisappearing:
-            c.alphaRange = 0.3  // Start with more variation
-            c.alphaSpeed = Float(alphaSpeed * 1.5)  // Fade faster
+            c.alphaRange = 0.3
+            c.alphaSpeed = Float(alphaSpeed * 1.5)
         case .midDisappearing:
             c.alphaRange = 0.25
             c.alphaSpeed = Float(alphaSpeed * 1.2)
         case .quickDisappearing:
-            c.alphaRange = 0.4  // High variation for dramatic effect
-            c.alphaSpeed = Float(alphaSpeed * 2.0)  // Very fast fade
+            c.alphaRange = 0.4
+            c.alphaSpeed = Float(alphaSpeed * 2.0)
         }
         
-        // ENHANCED: Handle 0-3.0 spin base and 0-4.0 spin range
-        c.spin = spinBase; c.spinRange = spinRange
+        // ENHANCED: Handle 0-3.0 spin base and 0-4.0 spin range with more variation
+        c.spin = spinBase + CGFloat.random(in: -0.1...0.1)  // Add slight spin variation
+        c.spinRange = spinRange
         
         return c
     }
