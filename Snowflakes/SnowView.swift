@@ -44,7 +44,7 @@ final class SnowView: NSView {
         func cells(for base: SnowSettings.LayerBase) -> [CAEmitterCell] {
             let sizeBase = base.baseSize * settings.sizeMultiplier
             let yAccel   = base.yAccel * settings.speedMultiplier
-            let aSpeed   = base.alphaSpeed * settings.twinkle
+            let aSpeed   = base.alphaSpeed  // SIMPLIFIED: Use base alpha speed directly
             
             // Add wind direction multiplier (-1 for left, +1 for right)
             let windMultiplier: CGFloat = settings.windDirection == .left ? -1.0 : 1.0
@@ -255,6 +255,7 @@ final class SnowView: NSView {
         }
     }
 
+    // SIMPLIFIED: Removed twinkle parameter from makeCell
     private func makeCell(size: CGFloat, image: CGImage, xAccel: CGFloat, yAccel: CGFloat,
                           alphaSpeed: CGFloat, spinBase: CGFloat, spinRange: CGFloat, spreadDeg: CGFloat,
                           baseWindVel: CGFloat) -> CAEmitterCell {
@@ -280,7 +281,7 @@ final class SnowView: NSView {
         let spread = max(0, min(.pi/2, spreadDeg * .pi / 180))
         c.emissionRange = spread
         c.scale = size / 180.0; c.scaleRange = 0.06; c.scaleSpeed = -0.002
-        c.alphaRange = 0.15; c.alphaSpeed = Float(alphaSpeed)
+        c.alphaRange = 0.15; c.alphaSpeed = Float(alphaSpeed)  // SIMPLIFIED: Back to basic alpha settings
         c.spin = spinBase; c.spinRange = spinRange
         return c
     }

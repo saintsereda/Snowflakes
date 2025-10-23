@@ -22,7 +22,6 @@ struct SettingsView: View {
         .onChange(of: s.intensity) { s.notifyChanged() }
         .onChange(of: s.windAmplitude) { s.notifyChanged() }
         .onChange(of: s.speedMultiplier) { s.notifyChanged() }
-        .onChange(of: s.twinkle) { s.notifyChanged() }
         .onChange(of: s.sizeMultiplier) { s.notifyChanged() }
         .onChange(of: s.emissionSpreadDeg) { s.notifyChanged() }
         .onChange(of: s.spinBase) { s.notifyChanged() }
@@ -43,7 +42,7 @@ struct PhysicsSection: View {
             HStack { Text("Wind"); Slider(value: $settings.windAmplitude, in: 0...20) }
             WindDirectionPicker(settings: settings)
             HStack { Text("Speed"); Slider(value: $settings.speedMultiplier, in: 0.6...1.6) }
-            HStack { Text("Twinkle"); Slider(value: $settings.twinkle, in: 0.6...1.6) }
+            // REMOVED: Twinkle slider
         }
     }
 }
@@ -54,7 +53,7 @@ struct VisualsSection: View {
     var body: some View {
         Section("Visuals") {
             HStack { Text("Flake Size"); Slider(value: $settings.sizeMultiplier, in: 0.6...1.6) }
-            HStack { Text("Emission Spread (Â°)"); Slider(value: $settings.emissionSpreadDeg, in: 0...40) }
+            HStack { Text("Emission Spread (°)"); Slider(value: $settings.emissionSpreadDeg, in: 0...40) }
             HStack { Text("Spin"); Slider(value: $settings.spinBase, in: 0.0...1.2) }
             HStack { Text("Spin Variability"); Slider(value: $settings.spinRange, in: 0.0...2.0) }
             ShapePicker(settings: settings)
@@ -68,9 +67,9 @@ struct ShapePicker: View {
     var body: some View {
         Picker("Shape", selection: $settings.shape) {
             Text("Dots").tag(SnowSettings.SnowShape.dots)
-            Text("Classic â„ï¸Ž").tag(SnowSettings.SnowShape.classic)
-            Text("Star âœ¦").tag(SnowSettings.SnowShape.star)
-            Text("Crystal âœ§").tag(SnowSettings.SnowShape.crystal)
+            Text("Classic ❄︎").tag(SnowSettings.SnowShape.classic)
+            Text("Star ✦").tag(SnowSettings.SnowShape.star)
+            Text("Crystal ✧").tag(SnowSettings.SnowShape.crystal)
             Text("Mixed").tag(SnowSettings.SnowShape.mixed)
             Text("Custom PNG").tag(SnowSettings.SnowShape.custom)
         }

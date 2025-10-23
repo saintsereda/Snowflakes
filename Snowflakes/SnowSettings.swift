@@ -23,7 +23,6 @@ final class SnowSettings: ObservableObject, Codable {
     @Published var intensity: CGFloat = 1.0
     @Published var windAmplitude: CGFloat = 6.0
     @Published var speedMultiplier: CGFloat = 1.0
-    @Published var twinkle: CGFloat = 1.0
 
     @Published var sizeMultiplier: CGFloat = 1.0
     @Published var emissionSpreadDeg: CGFloat = 12
@@ -73,24 +72,27 @@ final class SnowSettings: ObservableObject, Codable {
         return s
     }
 
-    // Codable snapshot (CGFloat â†’ Double; Published mirroring)
+    // Codable snapshot (CGFloat → Double; Published mirroring)
     private struct Snap: Codable {
         var enabled: Bool
-        var intensity: Double; var windAmplitude: Double; var speedMultiplier: Double; var twinkle: Double
+        var intensity: Double; var windAmplitude: Double; var speedMultiplier: Double
+        // REMOVED: twinkle from snapshot
         var sizeMultiplier: Double; var emissionSpreadDeg: Double; var spinBase: Double; var spinRange: Double
         var cutoff: Cutoff; var appearance: Appearance; var shape: SnowShape; var windDirection: WindDirection
     }
     private var snapshot: Snap {
         Snap(
             enabled: enabled,
-            intensity: intensity.d, windAmplitude: windAmplitude.d, speedMultiplier: speedMultiplier.d, twinkle: twinkle.d,
+            intensity: intensity.d, windAmplitude: windAmplitude.d, speedMultiplier: speedMultiplier.d,
+            // REMOVED: twinkle from snapshot creation
             sizeMultiplier: sizeMultiplier.d, emissionSpreadDeg: emissionSpreadDeg.d, spinBase: spinBase.d, spinRange: spinRange.d,
             cutoff: cutoff, appearance: appearance, shape: shape, windDirection: windDirection
         )
     }
     private func applySnapshot(_ p: Snap) throws {
         enabled = p.enabled
-        intensity = p.intensity.cg; windAmplitude = p.windAmplitude.cg; speedMultiplier = p.speedMultiplier.cg; twinkle = p.twinkle.cg
+        intensity = p.intensity.cg; windAmplitude = p.windAmplitude.cg; speedMultiplier = p.speedMultiplier.cg
+        // REMOVED: twinkle from snapshot application
         sizeMultiplier = p.sizeMultiplier.cg; emissionSpreadDeg = p.emissionSpreadDeg.cg; spinBase = p.spinBase.cg; spinRange = p.spinRange.cg
         cutoff = p.cutoff; appearance = p.appearance; shape = p.shape; windDirection = p.windDirection
     }
