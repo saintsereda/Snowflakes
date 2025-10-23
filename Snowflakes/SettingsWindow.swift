@@ -10,14 +10,45 @@ import Combine
 
 struct SettingsView: View {
     @ObservedObject var s = SnowSettings.shared
+    @State private var showingResetAlert = false
 
     var body: some View {
-        Form {
-            PhysicsSection(settings: s)
-            VisualsSection(settings: s)
-            WindowSection(settings: s)
+        VStack(spacing: 0) {
+            // Main settings form
+            Form {
+                PhysicsSection(settings: s)
+                VisualsSection(settings: s)
+                WindowSection(settings: s)
+            }
+            .padding(16)
+            
+            // Reset button at the bottom
+            VStack(spacing: 8) {
+                Divider()
+                
+                HStack {
+                    Spacer()
+                    
+                    Button("Reset to Defaults") {
+                        showingResetAlert = true
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundColor(.red)
+                    .alert("Reset Settings", isPresented: $showingResetAlert) {
+                        Button("Cancel", role: .cancel) { }
+                        Button("Reset", role: .destructive) {
+                            s.resetToDefaults()
+                        }
+                    } message: {
+                        Text("This will reset all settings to their default values. This action cannot be undone.")
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+            }
         }
-        .padding(16)
         .frame(width: 520)
         .onChange(of: s.intensity) { s.notifyChanged() }
         .onChange(of: s.windAmplitude) { s.notifyChanged() }
@@ -38,11 +69,19 @@ struct PhysicsSection: View {
     
     var body: some View {
         Section("Physics") {
-            HStack { Text("Intensity"); Slider(value: $settings.intensity, in: 0.3...2.0) }
-            HStack { Text("Wind"); Slider(value: $settings.windAmplitude, in: 0...20) }
+            // INCREASED RANGE: 0.1 to 3.0 (was 0.3 to 2.0)
+            // Now: 0.1 = very few flakes, 3.0 = snow storm
+            HStack { Text("Intensity"); Slider(value: $settings.intensity, in: 0.1...3.0) }
+            
+            // INCREASED RANGE: 0 to 30 (was 0 to 20)
+            // Now: 0 = no wind, 30 = hurricane-force wind
+            HStack { Text("Wind"); Slider(value: $settings.windAmplitude, in: 0...30) }
+            
             WindDirectionPicker(settings: settings)
-            HStack { Text("Speed"); Slider(value: $settings.speedMultiplier, in: 0.6...1.6) }
-            // REMOVED: Twinkle slider
+            
+            // INCREASED RANGE: 0.2 to 3.0 (was 0.6 to 1.6)
+            // Now: 0.2 = super slow motion, 3.0 = fast falling
+            HStack { Text("Speed"); Slider(value: $settings.speedMultiplier, in: 0.2...3.0) }
         }
     }
 }
@@ -52,10 +91,22 @@ struct VisualsSection: View {
     
     var body: some View {
         Section("Visuals") {
-            HStack { Text("Flake Size"); Slider(value: $settings.sizeMultiplier, in: 0.6...1.6) }
-            HStack { Text("Emission Spread (°)"); Slider(value: $settings.emissionSpreadDeg, in: 0...40) }
-            HStack { Text("Spin"); Slider(value: $settings.spinBase, in: 0.0...1.2) }
-            HStack { Text("Spin Variability"); Slider(value: $settings.spinRange, in: 0.0...2.0) }
+            // INCREASED RANGE: 0.3 to 2.5 (was 0.6 to 1.6)
+            // Now: 0.3 = tiny dots, 2.5 = huge flakes
+            HStack { Text("Flake Size"); Slider(value: $settings.sizeMultiplier, in: 0.3...2.5) }
+            
+            // INCREASED RANGE: 0 to 60 (was 0 to 40)
+            // Now: 0 = straight down column, 60 = wide cone spread
+            HStack { Text("Emission Spread (°)"); Slider(value: $settings.emissionSpreadDeg, in: 0...60) }
+            
+            // INCREASED RANGE: 0.0 to 3.0 (was 0.0 to 1.2)
+            // Now: 0.0 = no rotation, 3.0 = fast spinning
+            HStack { Text("Spin"); Slider(value: $settings.spinBase, in: 0.0...3.0) }
+            
+            // INCREASED RANGE: 0.0 to 4.0 (was 0.0 to 2.0)
+            // Now: 0.0 = all same speed, 4.0 = wild variation
+            HStack { Text("Spin Variability"); Slider(value: $settings.spinRange, in: 0.0...4.0) }
+            
             ShapePicker(settings: settings)
         }
     }
@@ -144,7 +195,7 @@ final class SettingsWindowController: NSWindowController {
     private init() {
         let hosting = NSHostingView(rootView: SettingsView())
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 480),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 520), // Slightly taller for reset button
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false
         )

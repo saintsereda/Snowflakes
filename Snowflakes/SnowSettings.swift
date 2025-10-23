@@ -16,28 +16,44 @@ extension Notification.Name {
 final class SnowSettings: ObservableObject, Codable {
     static let shared: SnowSettings = SnowSettings.loadFromDefaults()
 
+    // MARK: - Default Values
+    private struct Defaults {
+        static let enabled: Bool = true
+        static let intensity: CGFloat = 1.0
+        static let windAmplitude: CGFloat = 0
+        static let speedMultiplier: CGFloat = 1.0
+        static let sizeMultiplier: CGFloat = 1.0
+        static let emissionSpreadDeg: CGFloat = 12
+        static let spinBase: CGFloat = 0.25
+        static let spinRange: CGFloat = 1.0
+        static let cutoff: Cutoff = .full
+        static let appearance: Appearance = .overContent
+        static let shape: SnowShape = .dots
+        static let windDirection: WindDirection = .right
+    }
+
     // Enable / disable snowfall
-    @Published var enabled: Bool = true
+    @Published var enabled: Bool = Defaults.enabled
 
     // Physics/visuals (Published for SwiftUI; Codable via mirror struct below)
-    @Published var intensity: CGFloat = 1.0
-    @Published var windAmplitude: CGFloat = 6.0
-    @Published var speedMultiplier: CGFloat = 1.0
+    @Published var intensity: CGFloat = Defaults.intensity
+    @Published var windAmplitude: CGFloat = Defaults.windAmplitude
+    @Published var speedMultiplier: CGFloat = Defaults.speedMultiplier
 
-    @Published var sizeMultiplier: CGFloat = 1.0
-    @Published var emissionSpreadDeg: CGFloat = 12
-    @Published var spinBase: CGFloat = 0.25
-    @Published var spinRange: CGFloat = 1.0
+    @Published var sizeMultiplier: CGFloat = Defaults.sizeMultiplier
+    @Published var emissionSpreadDeg: CGFloat = Defaults.emissionSpreadDeg
+    @Published var spinBase: CGFloat = Defaults.spinBase
+    @Published var spinRange: CGFloat = Defaults.spinRange
 
     enum Cutoff: String, Codable, CaseIterable { case full, small150 }
     enum Appearance: String, Codable, CaseIterable { case overContent, desktopOnly }
     enum SnowShape: String, Codable, CaseIterable { case dots, classic, star, crystal, mixed, custom }
     enum WindDirection: String, Codable, CaseIterable { case left, right }
 
-    @Published var cutoff: Cutoff = .full
-    @Published var appearance: Appearance = .overContent
-    @Published var shape: SnowShape = .dots
-    @Published var windDirection: WindDirection = .right
+    @Published var cutoff: Cutoff = Defaults.cutoff
+    @Published var appearance: Appearance = Defaults.appearance
+    @Published var shape: SnowShape = Defaults.shape
+    @Published var windDirection: WindDirection = Defaults.windDirection
 
     // Baselines for parallax layers
     struct LayerBase: Codable {
@@ -49,6 +65,25 @@ final class SnowSettings: ObservableObject, Codable {
     var far  = LayerBase(baseSize: 18, birthTotal: 32, yAccel: -70,  alphaSpeed: -0.010)
     var mid  = LayerBase(baseSize: 24, birthTotal: 28, yAccel: -90,  alphaSpeed: -0.014)
     var near = LayerBase(baseSize: 32, birthTotal: 22, yAccel: -110, alphaSpeed: -0.018)
+
+    // MARK: - Reset to Defaults
+    func resetToDefaults() {
+        enabled = Defaults.enabled
+        intensity = Defaults.intensity
+        windAmplitude = Defaults.windAmplitude
+        speedMultiplier = Defaults.speedMultiplier
+        sizeMultiplier = Defaults.sizeMultiplier
+        emissionSpreadDeg = Defaults.emissionSpreadDeg
+        spinBase = Defaults.spinBase
+        spinRange = Defaults.spinRange
+        cutoff = Defaults.cutoff
+        appearance = Defaults.appearance
+        shape = Defaults.shape
+        windDirection = Defaults.windDirection
+        
+        // Notify about the changes
+        notifyChanged()
+    }
 
     // Persist
     private static let defaultsKey = "SnowSettings.swiftui.v1"
@@ -76,7 +111,6 @@ final class SnowSettings: ObservableObject, Codable {
     private struct Snap: Codable {
         var enabled: Bool
         var intensity: Double; var windAmplitude: Double; var speedMultiplier: Double
-        // REMOVED: twinkle from snapshot
         var sizeMultiplier: Double; var emissionSpreadDeg: Double; var spinBase: Double; var spinRange: Double
         var cutoff: Cutoff; var appearance: Appearance; var shape: SnowShape; var windDirection: WindDirection
     }
@@ -84,7 +118,6 @@ final class SnowSettings: ObservableObject, Codable {
         Snap(
             enabled: enabled,
             intensity: intensity.d, windAmplitude: windAmplitude.d, speedMultiplier: speedMultiplier.d,
-            // REMOVED: twinkle from snapshot creation
             sizeMultiplier: sizeMultiplier.d, emissionSpreadDeg: emissionSpreadDeg.d, spinBase: spinBase.d, spinRange: spinRange.d,
             cutoff: cutoff, appearance: appearance, shape: shape, windDirection: windDirection
         )
@@ -92,7 +125,6 @@ final class SnowSettings: ObservableObject, Codable {
     private func applySnapshot(_ p: Snap) throws {
         enabled = p.enabled
         intensity = p.intensity.cg; windAmplitude = p.windAmplitude.cg; speedMultiplier = p.speedMultiplier.cg
-        // REMOVED: twinkle from snapshot application
         sizeMultiplier = p.sizeMultiplier.cg; emissionSpreadDeg = p.emissionSpreadDeg.cg; spinBase = p.spinBase.cg; spinRange = p.spinRange.cg
         cutoff = p.cutoff; appearance = p.appearance; shape = p.shape; windDirection = p.windDirection
     }

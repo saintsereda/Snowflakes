@@ -1,5 +1,5 @@
 //
-//  SnowView.swift
+//  SnowView.swift - Enhanced for dramatic setting ranges
 //  Snowflakes
 //
 //  Created by Andrew Sereda on 22.10.2025.
@@ -44,16 +44,14 @@ final class SnowView: NSView {
         func cells(for base: SnowSettings.LayerBase) -> [CAEmitterCell] {
             let sizeBase = base.baseSize * settings.sizeMultiplier
             let yAccel   = base.yAccel * settings.speedMultiplier
-            let aSpeed   = base.alphaSpeed  // SIMPLIFIED: Use base alpha speed directly
+            let aSpeed   = base.alphaSpeed
             
             // Add wind direction multiplier (-1 for left, +1 for right)
             let windMultiplier: CGFloat = settings.windDirection == .left ? -1.0 : 1.0
             
-            // Add base wind velocity (direction-aware)
-            let baseWindVel = settings.windAmplitude * 8.0 * windMultiplier  // Increased from 5.0
-            
-            // Calculate initial horizontal acceleration for immediate wind effect
-            let baseXAccel = settings.windAmplitude * 15.0 * windMultiplier  // Increased from 8.0
+            // ENHANCED: More dramatic wind effects for the new 0-30 range
+            let baseWindVel = settings.windAmplitude * 12.0 * windMultiplier  // Increased multiplier
+            let baseXAccel = settings.windAmplitude * 20.0 * windMultiplier   // Increased for dramatic effect
 
             let imgs = imagesForShape(size: sizeBase, shape: settings.shape)
             let img0 = imgs.first!
@@ -73,6 +71,7 @@ final class SnowView: NSView {
                                    spinRange: settings.spinRange, spreadDeg: settings.emissionSpreadDeg,
                                    baseWindVel: baseWindVel)
 
+            // ENHANCED: More dramatic intensity range (0.1 to 3.0)
             let total = base.birthTotal * Float(settings.intensity)
             neutral.birthRate = total * 0.5; left.birthRate = total * 0.25; right.birthRate = total * 0.25
             return [neutral, left, right]
@@ -137,13 +136,14 @@ final class SnowView: NSView {
             e.removeAnimation(forKey: "wind")
             let gusts = CAKeyframeAnimation(keyPath: "emitterCells.snow.xAcceleration")
             gusts.values = gustValues
-            gusts.duration = 12  // Slightly faster for more dynamic feel
+            gusts.duration = 12
             gusts.calculationMode = .linear
             gusts.repeatCount = .infinity
             e.add(gusts, forKey: "wind")
         }
     }
 
+    // ENHANCED: More dramatic wind for 0-30 range
     private func makeNoiseGusts(samples: Int = 64, amp: CGFloat = 6, direction: SnowSettings.WindDirection = .right) -> [CGFloat] {
         // If amplitude is 0, return no wind
         guard amp > 0 else { return Array(repeating: 0, count: samples) }
@@ -151,21 +151,20 @@ final class SnowView: NSView {
         // Wind direction multiplier (-1 for left, +1 for right)
         let windMultiplier: CGFloat = direction == .left ? -1.0 : 1.0
         
-        // Create simple unidirectional wind with gentle variations
+        // Create dramatic wind variations for the new 0-30 range
         var gustValues: [CGFloat] = []
-        var x: CGFloat = .random(in: 0...100) // random phase
+        var x: CGFloat = .random(in: 0...100)
         
         for _ in 0..<samples {
-            // Create gentle variation between 0.7 and 1.3 of base wind strength
-            let variation = 0.7 + 0.6 * (0.5 + 0.5 * sin(x)) // Results in [0.7, 1.3]
-            let windStrength = amp * 12.0 * windMultiplier * variation // Strong consistent wind
+            // More dramatic variation between 0.5 and 1.5 of base wind strength
+            let variation = 0.5 + 1.0 * (0.5 + 0.5 * sin(x))
+            let windStrength = amp * 15.0 * windMultiplier * variation  // Increased multiplier for dramatic effect
             gustValues.append(windStrength)
             x += 0.2
         }
         
         return gustValues
     }
-
 
     // MARK: cutoff mask
     func setCutoff(_ points: CGFloat?) { cutoffPoints = points }
@@ -255,7 +254,7 @@ final class SnowView: NSView {
         }
     }
 
-    // SIMPLIFIED: Removed twinkle parameter from makeCell
+    // ENHANCED: Better handling of extreme ranges
     private func makeCell(size: CGFloat, image: CGImage, xAccel: CGFloat, yAccel: CGFloat,
                           alphaSpeed: CGFloat, spinBase: CGFloat, spinRange: CGFloat, spreadDeg: CGFloat,
                           baseWindVel: CGFloat) -> CAEmitterCell {
@@ -265,24 +264,32 @@ final class SnowView: NSView {
         c.lifetime = 14; c.lifetimeRange = 6
         c.velocity = 24; c.velocityRange = 16
         
-        // Set base wind direction through emission angle and initial velocity
+        // ENHANCED: Better wind angle calculation for dramatic ranges
         if abs(baseWindVel) > 0.1 {
-            // Calculate wind angle based on velocity (handles both positive and negative)
-            let windAngle = min(abs(baseWindVel) * 0.015, 0.5) * (baseWindVel < 0 ? -1 : 1)
+            let windAngle = min(abs(baseWindVel) * 0.02, 0.8) * (baseWindVel < 0 ? -1 : 1)  // Increased max angle
             c.emissionLongitude = -.pi/2 + windAngle
-            
-            // Add horizontal velocity component for immediate wind effect
-            c.velocityRange = 20  // Increased range for more variation
+            c.velocityRange = max(20, abs(baseWindVel) * 0.5)  // Dynamic velocity range
         } else {
             c.emissionLongitude = -.pi/2
         }
         
         c.yAcceleration = yAccel; c.xAcceleration = xAccel
-        let spread = max(0, min(.pi/2, spreadDeg * .pi / 180))
+        
+        // ENHANCED: Handle 0-60 degree spread range
+        let spread = max(0, min(.pi * 0.7, spreadDeg * .pi / 180))  // Allow up to ~126 degrees max
         c.emissionRange = spread
-        c.scale = size / 180.0; c.scaleRange = 0.06; c.scaleSpeed = -0.002
-        c.alphaRange = 0.15; c.alphaSpeed = Float(alphaSpeed)  // SIMPLIFIED: Back to basic alpha settings
+        
+        // ENHANCED: Better scale handling for 0.3-2.5 range
+        let baseScale = size / 180.0
+        c.scale = baseScale
+        c.scaleRange = min(0.1, baseScale * 0.3)  // Scale range proportional to size
+        c.scaleSpeed = -0.002
+        
+        c.alphaRange = 0.15; c.alphaSpeed = Float(alphaSpeed)
+        
+        // ENHANCED: Handle 0-3.0 spin base and 0-4.0 spin range
         c.spin = spinBase; c.spinRange = spinRange
+        
         return c
     }
 }
