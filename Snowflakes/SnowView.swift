@@ -1,8 +1,9 @@
 //
-//  SnowView.swift - Enhanced for dramatic setting ranges
+//  SnowView.swift - Enhanced with true mid-fall disappearing flakes
 //  Snowflakes
 //
 //  Created by Andrew Sereda on 22.10.2025.
+//  Enhanced with random mid-fall disappearing logic that actually removes flakes
 //
 
 import Cocoa
@@ -58,23 +59,28 @@ final class SnowView: NSView {
             let img1 = imgs.indices.contains(1) ? imgs[1] : img0
             let img2 = imgs.indices.contains(2) ? imgs[2] : img0
 
-            let neutral = makeCell(size: sizeBase, image: img0, xAccel: baseXAccel, yAccel: yAccel,
-                                   alphaSpeed: aSpeed, spinBase: settings.spinBase,
-                                   spinRange: settings.spinRange, spreadDeg: settings.emissionSpreadDeg,
-                                   baseWindVel: baseWindVel)
-            let left    = makeCell(size: sizeBase - 4, image: img1, xAccel: baseXAccel * 0.8, yAccel: yAccel,
-                                   alphaSpeed: aSpeed, spinBase: settings.spinBase,
-                                   spinRange: settings.spinRange, spreadDeg: settings.emissionSpreadDeg,
-                                   baseWindVel: baseWindVel)
-            let right   = makeCell(size: sizeBase + 6, image: img2, xAccel: baseXAccel * 1.2,  yAccel: yAccel,
-                                   alphaSpeed: aSpeed, spinBase: settings.spinBase,
-                                   spinRange: settings.spinRange, spreadDeg: settings.emissionSpreadDeg,
-                                   baseWindVel: baseWindVel)
-
-            // ENHANCED: More dramatic intensity range (0.1 to 3.0)
-            let total = base.birthTotal * Float(settings.intensity)
-            neutral.birthRate = total * 0.5; left.birthRate = total * 0.25; right.birthRate = total * 0.25
-            return [neutral, left, right]
+            // NEW: Create a mix of normal and early-disappearing cells
+            var allCells: [CAEmitterCell] = []
+            
+            // Create normal long-lived flakes (60-80% of particles)
+            let normalFlakes = createNormalFlakes(
+                sizeBase: sizeBase, images: [img0, img1, img2],
+                xAccel: baseXAccel, yAccel: yAccel, aSpeed: aSpeed,
+                settings: settings, baseWindVel: baseWindVel
+            )
+            
+            // Create early-disappearing flakes (20-40% of particles, based on intensity)
+            let disappearingFlakes = createDisappearingFlakes(
+                sizeBase: sizeBase, images: [img0, img1, img2],
+                xAccel: baseXAccel, yAccel: yAccel, aSpeed: aSpeed,
+                settings: settings, baseWindVel: baseWindVel,
+                baseTotal: base.birthTotal
+            )
+            
+            allCells.append(contentsOf: normalFlakes)
+            allCells.append(contentsOf: disappearingFlakes)
+            
+            return allCells
         }
 
         guard emitters.count == 3 else { return }
@@ -94,6 +100,102 @@ final class SnowView: NSView {
             let scale = window?.backingScaleFactor ?? (window?.screen?.backingScaleFactor ?? 2.0)
             setCutoff(150.0 / scale)
         }
+    }
+
+    // MARK: - Cell Creation Methods
+    
+    // Create normal long-lived flakes
+    private func createNormalFlakes(sizeBase: CGFloat, images: [CGImage],
+                                   xAccel: CGFloat, yAccel: CGFloat, aSpeed: CGFloat,
+                                   settings: SnowSettings, baseWindVel: CGFloat) -> [CAEmitterCell] {
+        
+        let img0 = images[0]
+        let img1 = images.indices.contains(1) ? images[1] : img0
+        let img2 = images.indices.contains(2) ? images[2] : img0
+        
+        let neutral = makeCell(
+            size: sizeBase, image: img0, xAccel: xAccel, yAccel: yAccel,
+            alphaSpeed: aSpeed, spinBase: settings.spinBase, spinRange: settings.spinRange,
+            spreadDeg: settings.emissionSpreadDeg, baseWindVel: baseWindVel,
+            lifetime: 14, lifetimeRange: 6, cellType: .normal
+        )
+        
+        let left = makeCell(
+            size: sizeBase - 4, image: img1, xAccel: xAccel * 0.8, yAccel: yAccel,
+            alphaSpeed: aSpeed, spinBase: settings.spinBase, spinRange: settings.spinRange,
+            spreadDeg: settings.emissionSpreadDeg, baseWindVel: baseWindVel,
+            lifetime: 14, lifetimeRange: 6, cellType: .normal
+        )
+        
+        let right = makeCell(
+            size: sizeBase + 6, image: img2, xAccel: xAccel * 1.2, yAccel: yAccel,
+            alphaSpeed: aSpeed, spinBase: settings.spinBase, spinRange: settings.spinRange,
+            spreadDeg: settings.emissionSpreadDeg, baseWindVel: baseWindVel,
+            lifetime: 14, lifetimeRange: 6, cellType: .normal
+        )
+        
+        // Calculate normal flake birth rates (60-80% of total based on intensity)
+        let normalRatio = calculateNormalFlakeRatio(intensity: settings.intensity)
+        let totalRate = Float(settings.intensity) * 32.0 // Base rate
+        let normalRate = totalRate * normalRatio
+        
+        neutral.birthRate = normalRate * 0.5
+        left.birthRate = normalRate * 0.25
+        right.birthRate = normalRate * 0.25
+        
+        return [neutral, left, right]
+    }
+    
+    // Create early-disappearing flakes
+    private func createDisappearingFlakes(sizeBase: CGFloat, images: [CGImage],
+                                         xAccel: CGFloat, yAccel: CGFloat, aSpeed: CGFloat,
+                                         settings: SnowSettings, baseWindVel: CGFloat,
+                                         baseTotal: Float) -> [CAEmitterCell] {
+        
+        let img0 = images[0]
+        let img1 = images.indices.contains(1) ? images[1] : img0
+        let img2 = images.indices.contains(2) ? images[2] : img0
+        
+        // Create multiple variants with different disappearing timings
+        var disappearingCells: [CAEmitterCell] = []
+        
+        let disappearanceRatio = calculateDisappearanceRatio(intensity: settings.intensity)
+        let totalRate = Float(settings.intensity) * baseTotal
+        let disappearingRate = totalRate * disappearanceRatio
+        
+        // Early disappearers (2-4 seconds)
+        let earlyDisappearer = makeCell(
+            size: sizeBase, image: img0, xAccel: xAccel, yAccel: yAccel,
+            alphaSpeed: aSpeed * 2.0, spinBase: settings.spinBase, spinRange: settings.spinRange,
+            spreadDeg: settings.emissionSpreadDeg, baseWindVel: baseWindVel,
+            lifetime: 3, lifetimeRange: 2, cellType: .earlyDisappearing
+        )
+        earlyDisappearer.birthRate = disappearingRate * 0.4
+        disappearingCells.append(earlyDisappearer)
+        
+        // Mid disappearers (4-7 seconds)
+        let midDisappearer = makeCell(
+            size: sizeBase - 2, image: img1, xAccel: xAccel * 0.9, yAccel: yAccel,
+            alphaSpeed: aSpeed * 1.5, spinBase: settings.spinBase, spinRange: settings.spinRange,
+            spreadDeg: settings.emissionSpreadDeg, baseWindVel: baseWindVel,
+            lifetime: 5.5, lifetimeRange: 2.5, cellType: .midDisappearing
+        )
+        midDisappearer.birthRate = disappearingRate * 0.4
+        disappearingCells.append(midDisappearer)
+        
+        // Random quick disappearers (1-3 seconds) - for dramatic effect at high intensity
+        if settings.intensity > 1.5 {
+            let quickDisappearer = makeCell(
+                size: sizeBase + 2, image: img2, xAccel: xAccel * 1.1, yAccel: yAccel,
+                alphaSpeed: aSpeed * 3.0, spinBase: settings.spinBase, spinRange: settings.spinRange,
+                spreadDeg: settings.emissionSpreadDeg, baseWindVel: baseWindVel,
+                lifetime: 2, lifetimeRange: 2, cellType: .quickDisappearing
+            )
+            quickDisappearer.birthRate = disappearingRate * 0.2
+            disappearingCells.append(quickDisappearer)
+        }
+        
+        return disappearingCells
     }
 
     // MARK: emitter plumbing
@@ -254,14 +356,27 @@ final class SnowView: NSView {
         }
     }
 
-    // ENHANCED: Better handling of extreme ranges
+    // MARK: - Cell Type Enum
+    private enum CellType {
+        case normal
+        case earlyDisappearing
+        case midDisappearing
+        case quickDisappearing
+    }
+
+    // ENHANCED: Create cells with specific lifetime behaviors
     private func makeCell(size: CGFloat, image: CGImage, xAccel: CGFloat, yAccel: CGFloat,
                           alphaSpeed: CGFloat, spinBase: CGFloat, spinRange: CGFloat, spreadDeg: CGFloat,
-                          baseWindVel: CGFloat) -> CAEmitterCell {
+                          baseWindVel: CGFloat, lifetime: CGFloat, lifetimeRange: CGFloat,
+                          cellType: CellType) -> CAEmitterCell {
         let c = CAEmitterCell()
         c.name = "snow"
         c.contents = image
-        c.lifetime = 14; c.lifetimeRange = 6
+        
+        // KEY CHANGE: Use the provided lifetime parameters
+        c.lifetime = Float(lifetime)
+        c.lifetimeRange = Float(lifetimeRange)
+        
         c.velocity = 24; c.velocityRange = 16
         
         // ENHANCED: Better wind angle calculation for dramatic ranges
@@ -285,12 +400,43 @@ final class SnowView: NSView {
         c.scaleRange = min(0.1, baseScale * 0.3)  // Scale range proportional to size
         c.scaleSpeed = -0.002
         
-        c.alphaRange = 0.15; c.alphaSpeed = Float(alphaSpeed)
+        // Enhanced alpha behavior based on cell type
+        switch cellType {
+        case .normal:
+            c.alphaRange = 0.15
+            c.alphaSpeed = Float(alphaSpeed)
+        case .earlyDisappearing:
+            c.alphaRange = 0.3  // Start with more variation
+            c.alphaSpeed = Float(alphaSpeed * 1.5)  // Fade faster
+        case .midDisappearing:
+            c.alphaRange = 0.25
+            c.alphaSpeed = Float(alphaSpeed * 1.2)
+        case .quickDisappearing:
+            c.alphaRange = 0.4  // High variation for dramatic effect
+            c.alphaSpeed = Float(alphaSpeed * 2.0)  // Very fast fade
+        }
         
         // ENHANCED: Handle 0-3.0 spin base and 0-4.0 spin range
         c.spin = spinBase; c.spinRange = spinRange
         
         return c
+    }
+    
+    // Calculate ratio of normal vs disappearing flakes based on intensity
+    private func calculateNormalFlakeRatio(intensity: CGFloat) -> Float {
+        // At low intensity: 80% normal flakes
+        // At high intensity: 60% normal flakes
+        let clampedIntensity = max(0.1, min(3.0, intensity))
+        let normalizedIntensity = (clampedIntensity - 0.1) / 2.9  // 0.0 to 1.0
+        return 0.8 - (0.2 * Float(normalizedIntensity))  // 0.8 to 0.6
+    }
+    
+    private func calculateDisappearanceRatio(intensity: CGFloat) -> Float {
+        // At low intensity: 20% disappearing flakes
+        // At high intensity: 40% disappearing flakes
+        let clampedIntensity = max(0.1, min(3.0, intensity))
+        let normalizedIntensity = (clampedIntensity - 0.1) / 2.9  // 0.0 to 1.0
+        return 0.2 + (0.2 * Float(normalizedIntensity))  // 0.2 to 0.4
     }
 }
 
