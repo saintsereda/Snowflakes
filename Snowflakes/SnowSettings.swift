@@ -33,10 +33,12 @@ final class SnowSettings: ObservableObject, Codable {
     enum Cutoff: String, Codable, CaseIterable { case full, small150 }
     enum Appearance: String, Codable, CaseIterable { case overContent, desktopOnly }
     enum SnowShape: String, Codable, CaseIterable { case dots, classic, star, crystal, mixed, custom }
+    enum WindDirection: String, Codable, CaseIterable { case left, right }
 
     @Published var cutoff: Cutoff = .full
     @Published var appearance: Appearance = .overContent
     @Published var shape: SnowShape = .dots
+    @Published var windDirection: WindDirection = .right
 
     // Baselines for parallax layers
     struct LayerBase: Codable {
@@ -71,26 +73,26 @@ final class SnowSettings: ObservableObject, Codable {
         return s
     }
 
-    // Codable snapshot (CGFloat → Double; Published mirroring)
+    // Codable snapshot (CGFloat â†’ Double; Published mirroring)
     private struct Snap: Codable {
         var enabled: Bool
         var intensity: Double; var windAmplitude: Double; var speedMultiplier: Double; var twinkle: Double
         var sizeMultiplier: Double; var emissionSpreadDeg: Double; var spinBase: Double; var spinRange: Double
-        var cutoff: Cutoff; var appearance: Appearance; var shape: SnowShape
+        var cutoff: Cutoff; var appearance: Appearance; var shape: SnowShape; var windDirection: WindDirection
     }
     private var snapshot: Snap {
         Snap(
             enabled: enabled,
             intensity: intensity.d, windAmplitude: windAmplitude.d, speedMultiplier: speedMultiplier.d, twinkle: twinkle.d,
             sizeMultiplier: sizeMultiplier.d, emissionSpreadDeg: emissionSpreadDeg.d, spinBase: spinBase.d, spinRange: spinRange.d,
-            cutoff: cutoff, appearance: appearance, shape: shape
+            cutoff: cutoff, appearance: appearance, shape: shape, windDirection: windDirection
         )
     }
     private func applySnapshot(_ p: Snap) throws {
         enabled = p.enabled
         intensity = p.intensity.cg; windAmplitude = p.windAmplitude.cg; speedMultiplier = p.speedMultiplier.cg; twinkle = p.twinkle.cg
         sizeMultiplier = p.sizeMultiplier.cg; emissionSpreadDeg = p.emissionSpreadDeg.cg; spinBase = p.spinBase.cg; spinRange = p.spinRange.cg
-        cutoff = p.cutoff; appearance = p.appearance; shape = p.shape
+        cutoff = p.cutoff; appearance = p.appearance; shape = p.shape; windDirection = p.windDirection
     }
 
     // Codable conformance (unused, but required by protocol)

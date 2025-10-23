@@ -18,6 +18,7 @@ final class SnowView: NSView {
     // Parallax emitters
     private var emitters: [CAEmitterLayer] = [] // far, mid, near
     private var currentWindAmp: CGFloat = 6.0
+    private var currentWindDirection: SnowSettings.WindDirection = .right
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -44,21 +45,33 @@ final class SnowView: NSView {
             let sizeBase = base.baseSize * settings.sizeMultiplier
             let yAccel   = base.yAccel * settings.speedMultiplier
             let aSpeed   = base.alphaSpeed * settings.twinkle
+            
+            // Add wind direction multiplier (-1 for left, +1 for right)
+            let windMultiplier: CGFloat = settings.windDirection == .left ? -1.0 : 1.0
+            
+            // Add base wind velocity (direction-aware)
+            let baseWindVel = settings.windAmplitude * 8.0 * windMultiplier  // Increased from 5.0
+            
+            // Calculate initial horizontal acceleration for immediate wind effect
+            let baseXAccel = settings.windAmplitude * 15.0 * windMultiplier  // Increased from 8.0
 
             let imgs = imagesForShape(size: sizeBase, shape: settings.shape)
             let img0 = imgs.first!
             let img1 = imgs.indices.contains(1) ? imgs[1] : img0
             let img2 = imgs.indices.contains(2) ? imgs[2] : img0
 
-            let neutral = makeCell(size: sizeBase, image: img0, xAccel: 0,   yAccel: yAccel,
+            let neutral = makeCell(size: sizeBase, image: img0, xAccel: baseXAccel, yAccel: yAccel,
                                    alphaSpeed: aSpeed, spinBase: settings.spinBase,
-                                   spinRange: settings.spinRange, spreadDeg: settings.emissionSpreadDeg)
-            let left    = makeCell(size: sizeBase - 4, image: img1, xAccel: -10, yAccel: yAccel,
+                                   spinRange: settings.spinRange, spreadDeg: settings.emissionSpreadDeg,
+                                   baseWindVel: baseWindVel)
+            let left    = makeCell(size: sizeBase - 4, image: img1, xAccel: baseXAccel * 0.8, yAccel: yAccel,
                                    alphaSpeed: aSpeed, spinBase: settings.spinBase,
-                                   spinRange: settings.spinRange, spreadDeg: settings.emissionSpreadDeg)
-            let right   = makeCell(size: sizeBase + 6, image: img2, xAccel: 10,  yAccel: yAccel,
+                                   spinRange: settings.spinRange, spreadDeg: settings.emissionSpreadDeg,
+                                   baseWindVel: baseWindVel)
+            let right   = makeCell(size: sizeBase + 6, image: img2, xAccel: baseXAccel * 1.2,  yAccel: yAccel,
                                    alphaSpeed: aSpeed, spinBase: settings.spinBase,
-                                   spinRange: settings.spinRange, spreadDeg: settings.emissionSpreadDeg)
+                                   spinRange: settings.spinRange, spreadDeg: settings.emissionSpreadDeg,
+                                   baseWindVel: baseWindVel)
 
             let total = base.birthTotal * Float(settings.intensity)
             neutral.birthRate = total * 0.5; left.birthRate = total * 0.25; right.birthRate = total * 0.25
@@ -70,15 +83,10 @@ final class SnowView: NSView {
         emitters[1].emitterCells = cells(for: settings.mid)
         emitters[2].emitterCells = cells(for: settings.near)
 
-        if currentWindAmp != settings.windAmplitude {
+        if currentWindAmp != settings.windAmplitude || currentWindDirection != settings.windDirection {
             currentWindAmp = settings.windAmplitude
-            for e in emitters {
-                e.removeAnimation(forKey: "wind")
-                let gusts = CAKeyframeAnimation(keyPath: "emitterCells.snow.xAcceleration")
-                gusts.values = makeNoiseGusts(samples: 64, amp: settings.windAmplitude)
-                gusts.duration = 16; gusts.calculationMode = .cubic; gusts.repeatCount = .infinity
-                e.add(gusts, forKey: "wind")
-            }
+            currentWindDirection = settings.windDirection
+            updateWindAnimations()
         }
 
         switch settings.cutoff {
@@ -120,34 +128,42 @@ final class SnowView: NSView {
 
     // MARK: wind
     private func startWindAnimations() {
-        // In startWindAnimations()
-        let gustValues = makeNoiseGusts(samples: 64, amp: currentWindAmp)
+        updateWindAnimations()
+    }
+    
+    private func updateWindAnimations() {
+        let gustValues = makeNoiseGusts(samples: 64, amp: currentWindAmp, direction: currentWindDirection)
         for e in emitters {
+            e.removeAnimation(forKey: "wind")
             let gusts = CAKeyframeAnimation(keyPath: "emitterCells.snow.xAcceleration")
             gusts.values = gustValues
-            gusts.duration = 16
-            gusts.calculationMode = .linear   // was .cubic
+            gusts.duration = 12  // Slightly faster for more dynamic feel
+            gusts.calculationMode = .linear
             gusts.repeatCount = .infinity
             e.add(gusts, forKey: "wind")
         }
     }
 
-    // Replace the old one
-    private func makeNoiseGusts(samples: Int = 64, amp: CGFloat = 6) -> [CGFloat] {
-        var v: [CGFloat] = []
-        var x: CGFloat = .random(in: 0...1000) // random phase so layers don’t sync + avoid pattern bias
+    private func makeNoiseGusts(samples: Int = 64, amp: CGFloat = 6, direction: SnowSettings.WindDirection = .right) -> [CGFloat] {
+        // If amplitude is 0, return no wind
+        guard amp > 0 else { return Array(repeating: 0, count: samples) }
+        
+        // Wind direction multiplier (-1 for left, +1 for right)
+        let windMultiplier: CGFloat = direction == .left ? -1.0 : 1.0
+        
+        // Create simple unidirectional wind with gentle variations
+        var gustValues: [CGFloat] = []
+        var x: CGFloat = .random(in: 0...100) // random phase
+        
         for _ in 0..<samples {
-            let n = sin(x) + 0.5 * sin(2.3 * x + 1.7) + 0.25 * sin(4.7 * x + 3.1)
-            v.append(n)
-            x += 0.18
+            // Create gentle variation between 0.7 and 1.3 of base wind strength
+            let variation = 0.7 + 0.6 * (0.5 + 0.5 * sin(x)) // Results in [0.7, 1.3]
+            let windStrength = amp * 12.0 * windMultiplier * variation // Strong consistent wind
+            gustValues.append(windStrength)
+            x += 0.2
         }
-        // remove DC (average) so there’s no long-term push
-        let mean = v.reduce(0, +) / CGFloat(v.count)
-        var z = v.map { $0 - mean }
-        // normalize to [-amp, +amp]
-        let maxAbs = z.map { abs($0) }.max() ?? 1
-        if maxAbs > 0 { z = z.map { ($0 / maxAbs) * amp } }
-        return z
+        
+        return gustValues
     }
 
 
@@ -240,15 +256,29 @@ final class SnowView: NSView {
     }
 
     private func makeCell(size: CGFloat, image: CGImage, xAccel: CGFloat, yAccel: CGFloat,
-                          alphaSpeed: CGFloat, spinBase: CGFloat, spinRange: CGFloat, spreadDeg: CGFloat) -> CAEmitterCell {
+                          alphaSpeed: CGFloat, spinBase: CGFloat, spinRange: CGFloat, spreadDeg: CGFloat,
+                          baseWindVel: CGFloat) -> CAEmitterCell {
         let c = CAEmitterCell()
         c.name = "snow"
         c.contents = image
         c.lifetime = 14; c.lifetimeRange = 6
         c.velocity = 24; c.velocityRange = 16
+        
+        // Set base wind direction through emission angle and initial velocity
+        if abs(baseWindVel) > 0.1 {
+            // Calculate wind angle based on velocity (handles both positive and negative)
+            let windAngle = min(abs(baseWindVel) * 0.015, 0.5) * (baseWindVel < 0 ? -1 : 1)
+            c.emissionLongitude = -.pi/2 + windAngle
+            
+            // Add horizontal velocity component for immediate wind effect
+            c.velocityRange = 20  // Increased range for more variation
+        } else {
+            c.emissionLongitude = -.pi/2
+        }
+        
         c.yAcceleration = yAccel; c.xAcceleration = xAccel
         let spread = max(0, min(.pi/2, spreadDeg * .pi / 180))
-        c.emissionLongitude = -.pi/2; c.emissionRange = spread
+        c.emissionRange = spread
         c.scale = size / 180.0; c.scaleRange = 0.06; c.scaleSpeed = -0.002
         c.alphaRange = 0.15; c.alphaSpeed = Float(alphaSpeed)
         c.spin = spinBase; c.spinRange = spinRange
