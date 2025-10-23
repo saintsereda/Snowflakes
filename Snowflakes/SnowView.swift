@@ -1,9 +1,9 @@
 //
-//  SnowView.swift - Enhanced with natural horizontal distribution
+//  SnowView.swift - Fixed natural snowfall distribution (no more faucets!)
 //  Snowflakes
 //
 //  Created by Andrew Sereda on 22.10.2025.
-//  Enhanced with better horizontal spreading and natural emission patterns
+//  Fixed to create natural uniform snowfall without vertical columns
 //
 
 import Cocoa
@@ -16,7 +16,7 @@ final class SnowView: NSView {
     private var cutoffPoints: CGFloat? { didSet { updateCutoffMask() } }
     private let cutoffFeather: CGFloat = 18
 
-    // Parallax emitters
+    // Back to simple 3 emitters, but properly configured
     private var emitters: [CAEmitterLayer] = [] // far, mid, near
     private var currentWindAmp: CGFloat = 6.0
     private var currentWindDirection: SnowSettings.WindDirection = .right
@@ -210,9 +210,9 @@ final class SnowView: NSView {
 
     private func setupAllEmitters() {
         for e in emitters {
-            // FIXED: Change emitter configuration for better horizontal distribution
+            // FIXED: The key is using .volume mode instead of .surface!
             e.emitterShape = .line
-            e.emitterMode = .surface  // This ensures particles are emitted across the entire line
+            e.emitterMode = .volume  // This makes particles emit from along the entire line uniformly!
             e.seed = UInt32.random(in: 0...UInt32.max)
             e.renderMode = .unordered
         }
@@ -221,17 +221,17 @@ final class SnowView: NSView {
     }
 
     private func layoutEmitters() {
-        let top = bounds.maxY
-        // FIXED: Make the emission line span the full width + extra for off-screen spawning
-        let extraWidth: CGFloat = 200  // Spawn flakes off-screen for more natural entry
+        let top = bounds.maxY + 48  // Start well above screen
+        
+        // FIXED: Make emission line much wider than screen for natural entry
+        let extraWidth: CGFloat = 300  // Generous extra space
         let emissionWidth = bounds.width + (extraWidth * 2)
         let size = CGSize(width: emissionWidth, height: 1)
         
         for e in emitters {
             e.frame = bounds
-            e.emitterSize = size
-            // FIXED: Center the emission line but make it wider than the screen
-            e.emitterPosition = CGPoint(x: bounds.midX, y: top + 32)  // Start higher up
+            e.emitterSize = size  // Wide line
+            e.emitterPosition = CGPoint(x: bounds.midX, y: top)  // Centered position
         }
     }
 
@@ -372,7 +372,7 @@ final class SnowView: NSView {
         case quickDisappearing
     }
 
-    // ENHANCED: Create cells with better horizontal distribution
+    // ENHANCED: Create cells with proper natural distribution
     private func makeCell(size: CGFloat, image: CGImage, xAccel: CGFloat, yAccel: CGFloat,
                           alphaSpeed: CGFloat, spinBase: CGFloat, spinRange: CGFloat, spreadDeg: CGFloat,
                           baseWindVel: CGFloat, lifetime: CGFloat, lifetimeRange: CGFloat,
@@ -385,15 +385,15 @@ final class SnowView: NSView {
         c.lifetime = Float(lifetime)
         c.lifetimeRange = Float(lifetimeRange)
         
-        // FIXED: Enhanced velocity for better horizontal distribution
-        c.velocity = 24
-        c.velocityRange = 24  // Increased range for more horizontal variety
+        // FIXED: More natural initial velocities
+        c.velocity = 20
+        c.velocityRange = 16  // Good horizontal spread
         
         // ENHANCED: Better wind angle calculation for dramatic ranges
         if abs(baseWindVel) > 0.1 {
             let windAngle = min(abs(baseWindVel) * 0.02, 0.8) * (baseWindVel < 0 ? -1 : 1)
             c.emissionLongitude = -.pi/2 + windAngle
-            c.velocityRange = max(30, abs(baseWindVel) * 0.5)  // Increased for better spread
+            c.velocityRange = max(20, abs(baseWindVel) * 0.5)
         } else {
             c.emissionLongitude = -.pi/2
         }
@@ -401,36 +401,34 @@ final class SnowView: NSView {
         c.yAcceleration = yAccel
         c.xAcceleration = xAccel
         
-        // FIXED: Enhanced emission range for better horizontal spread
-        let baseSpread = max(0, min(.pi * 0.7, spreadDeg * .pi / 180))
-        // Add extra horizontal spread regardless of user setting for natural distribution
-        let enhancedSpread = max(baseSpread, .pi * 0.15)  // Minimum 27° spread
-        c.emissionRange = enhancedSpread
+        // FIXED: Better emission range - this creates natural spread from the line
+        let baseSpread = max(0, min(.pi * 0.6, spreadDeg * .pi / 180))
+        c.emissionRange = max(baseSpread, .pi * 0.12)  // Minimum 22° spread for natural look
         
-        // ENHANCED: Better scale handling with more variation
+        // ENHANCED: Better scale handling with variation
         let baseScale = size / 180.0
         c.scale = baseScale
-        c.scaleRange = min(0.15, baseScale * 0.4)  // Increased scale variation
+        c.scaleRange = min(0.1, baseScale * 0.25)
         c.scaleSpeed = -0.002
         
         // Enhanced alpha behavior based on cell type
         switch cellType {
         case .normal:
-            c.alphaRange = 0.2  // Slightly increased for more variation
+            c.alphaRange = 0.15
             c.alphaSpeed = Float(alphaSpeed)
         case .earlyDisappearing:
-            c.alphaRange = 0.3
+            c.alphaRange = 0.25
             c.alphaSpeed = Float(alphaSpeed * 1.5)
         case .midDisappearing:
-            c.alphaRange = 0.25
+            c.alphaRange = 0.2
             c.alphaSpeed = Float(alphaSpeed * 1.2)
         case .quickDisappearing:
-            c.alphaRange = 0.4
+            c.alphaRange = 0.3
             c.alphaSpeed = Float(alphaSpeed * 2.0)
         }
         
-        // ENHANCED: Handle 0-3.0 spin base and 0-4.0 spin range with more variation
-        c.spin = spinBase + CGFloat.random(in: -0.1...0.1)  // Add slight spin variation
+        // ENHANCED: Handle 0-3.0 spin base and 0-4.0 spin range
+        c.spin = spinBase
         c.spinRange = spinRange
         
         return c

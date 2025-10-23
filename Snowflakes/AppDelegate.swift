@@ -3,6 +3,7 @@
 //  Snowflakes
 //
 //  Created by Andrew Sereda on 22.10.2025.
+//  Enhanced with sleep/wake tracking
 //
 
 import Cocoa
@@ -22,10 +23,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // App state
     private let settings = SnowSettings.shared
     private let windows  = WindowManager()
+    
+    // Sleep/wake tracking
+    private var wasEnabledBeforeSleep = true
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         buildStatusMenu()
+        setupSleepWakeObservers()
 
         // Create overlays for all screens and apply current settings
         windows.apply(settings)
@@ -39,6 +44,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.windows.apply(self.settings)
             self.refreshMenuChecks()
             self.applyStatusIcon(isActive: self.settings.enabled) // keep icon in sync
+        }
+    }
+    
+    // MARK: - Sleep/Wake Tracking
+    
+    private func setupSleepWakeObservers() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(handleSleep),
+            name: NSWorkspace.willSleepNotification,
+            object: nil
+        )
+        
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(handleWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func handleSleep() {
+        print("System going to sleep - pausing snowfall")
+        wasEnabledBeforeSleep = settings.enabled
+        if settings.enabled {
+            settings.enabled = false
+            settings.notifyChanged()
+            applyStatusIcon(isActive: false)
+        }
+    }
+    
+    @objc private func handleWake() {
+        print("System waking up - resuming snowfall with delay")
+        // Small delay before resuming to allow system to stabilize
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self else { return }
+            if self.wasEnabledBeforeSleep {
+                self.settings.enabled = true
+                self.settings.notifyChanged()
+                self.applyStatusIcon(isActive: true)
+                print("Snowfall resumed after wake")
+            }
         }
     }
 
@@ -196,6 +243,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func quit() {
+        // Clean up observers before quitting
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+        NotificationCenter.default.removeObserver(self)
         NSApp.terminate(nil)
+    }
+    
+    // MARK: - Cleanup
+    
+    deinit {
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+        NotificationCenter.default.removeObserver(self)
     }
 }
