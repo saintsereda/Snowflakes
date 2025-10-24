@@ -1,9 +1,9 @@
 //
-//  AppDelegate.swift - Enhanced with dock icon management
+//  AppDelegate.swift - Enhanced with dock icon management and tip modal
 //  Snowflakes
 //
 //  Created by Andrew Sereda on 22.10.2025.
-//  Enhanced to show dock icon when settings window is open
+//  Enhanced to show dock icon when settings window is open and tip modal on first launch
 //
 
 import Cocoa
@@ -31,6 +31,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // Initialize launch at login (auto-enables on first run)
         launchAtLogin.refresh()
+        // TEMPORARY: For testing tip modal
+//        UserDefaults.standard.removeObject(forKey: "HasShownFirstLaunchTip")
+        // Show tip modal on first launch
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self else { return }
+            TipModal.showIfNeeded(below: self.statusItem)
+        }
 
         // Create overlays for all screens and apply current settings
         windows.apply(settings)
@@ -191,7 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             statusItem.button?.title = ""
         } else {
             statusItem.button?.image = nil
-            statusItem.button?.title = isActive ? "❄︎" : "⛔︎"
+            statusItem.button?.title = isActive ? "❄️" : "⛔️"
         }
     }
 
