@@ -1,8 +1,9 @@
 //
-//  SettingsWindow.swift
+//  SettingsWindow.swift - Enhanced with guaranteed front window behavior
 //  Snowflakes
 //
 //  Created by Andrew Sereda on 22.10.2025.
+//  Enhanced to always bring settings window to front
 //
 
 import SwiftUI
@@ -10,12 +11,14 @@ import Combine
 
 struct SettingsView: View {
     @ObservedObject var s = SnowSettings.shared
+    @ObservedObject var launchAtLogin = LaunchAtLogin.shared
     @State private var showingResetAlert = false
 
     var body: some View {
         VStack(spacing: 0) {
             // Main settings form
             Form {
+                GeneralSection(launchAtLogin: launchAtLogin)
                 PhysicsSection(settings: s)
                 VisualsSection(settings: s)
                 WindowSection(settings: s)
@@ -50,6 +53,9 @@ struct SettingsView: View {
             }
         }
         .frame(width: 520)
+        .onAppear {
+            launchAtLogin.refresh()
+        }
         .onChange(of: s.intensity) { s.notifyChanged() }
         .onChange(of: s.windAmplitude) { s.notifyChanged() }
         .onChange(of: s.speedMultiplier) { s.notifyChanged() }
@@ -64,23 +70,39 @@ struct SettingsView: View {
     }
 }
 
+struct GeneralSection: View {
+    @ObservedObject var launchAtLogin: LaunchAtLogin
+    
+    var body: some View {
+        Section("General") {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Launch at Login")
+                        .font(.system(size: 13))
+                    Text("Automatically start Snowflakes when you log in")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Toggle("", isOn: $launchAtLogin.isEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+}
+
 struct PhysicsSection: View {
     @ObservedObject var settings: SnowSettings
     
     var body: some View {
         Section("Physics") {
-            // INCREASED RANGE: 0.1 to 3.0 (was 0.3 to 2.0)
-            // Now: 0.1 = very few flakes, 3.0 = snow storm
             HStack { Text("Intensity"); Slider(value: $settings.intensity, in: 0.1...3.0) }
-            
-            // INCREASED RANGE: 0 to 30 (was 0 to 20)
-            // Now: 0 = no wind, 30 = hurricane-force wind
             HStack { Text("Wind"); Slider(value: $settings.windAmplitude, in: 0...30) }
-            
             WindDirectionPicker(settings: settings)
-            
-            // INCREASED RANGE: 0.2 to 3.0 (was 0.6 to 1.6)
-            // Now: 0.2 = super slow motion, 3.0 = fast falling
             HStack { Text("Speed"); Slider(value: $settings.speedMultiplier, in: 0.2...3.0) }
         }
     }
@@ -91,22 +113,10 @@ struct VisualsSection: View {
     
     var body: some View {
         Section("Visuals") {
-            // INCREASED RANGE: 0.3 to 2.5 (was 0.6 to 1.6)
-            // Now: 0.3 = tiny dots, 2.5 = huge flakes
             HStack { Text("Flake Size"); Slider(value: $settings.sizeMultiplier, in: 0.3...2.5) }
-            
-            // INCREASED RANGE: 0 to 60 (was 0 to 40)
-            // Now: 0 = straight down column, 60 = wide cone spread
             HStack { Text("Emission Spread (°)"); Slider(value: $settings.emissionSpreadDeg, in: 0...60) }
-            
-            // INCREASED RANGE: 0.0 to 3.0 (was 0.0 to 1.2)
-            // Now: 0.0 = no rotation, 3.0 = fast spinning
             HStack { Text("Spin"); Slider(value: $settings.spinBase, in: 0.0...3.0) }
-            
-            // INCREASED RANGE: 0.0 to 4.0 (was 0.0 to 2.0)
-            // Now: 0.0 = all same speed, 4.0 = wild variation
             HStack { Text("Spin Variability"); Slider(value: $settings.spinRange, in: 0.0...4.0) }
-            
             ShapePicker(settings: settings)
         }
     }
@@ -152,7 +162,6 @@ struct WindDirectionPicker: View {
             Text("Wind Direction")
             Spacer()
             HStack(spacing: 8) {
-                // Left arrow button
                 Button(action: { settings.windDirection = .left }) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.left")
@@ -168,7 +177,6 @@ struct WindDirectionPicker: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 
-                // Right arrow button
                 Button(action: { settings.windDirection = .right }) {
                     HStack(spacing: 4) {
                         Text("Right")
@@ -188,14 +196,14 @@ struct WindDirectionPicker: View {
     }
 }
 
-// Simple NSWindowController hosting SwiftUI SettingsView
+// Enhanced NSWindowController with guaranteed front window behavior
 final class SettingsWindowController: NSWindowController {
     static let shared = SettingsWindowController()
 
     private init() {
         let hosting = NSHostingView(rootView: SettingsView())
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 520), // Slightly taller for reset button
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 580),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false
         )
@@ -203,14 +211,89 @@ final class SettingsWindowController: NSWindowController {
         window.center()
         window.isReleasedWhenClosed = false
         window.contentView = hosting
+        
+        // ENHANCED: Set window properties for better front behavior
+        window.level = .normal
+        window.collectionBehavior = [.moveToActiveSpace]
+        
         super.init(window: window)
+        
+        setupWindowObservers()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    
+    private func setupWindowObservers() {
+        guard let window = window else { return }
+        
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeMainNotification,
+            object: window,
+            queue: .main
+        ) { _ in
+            NotificationCenter.default.post(name: .SettingsWindowDidOpen, object: nil)
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { _ in
+            NotificationCenter.default.post(name: .SettingsWindowDidClose, object: nil)
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didMiniaturizeNotification,
+            object: window,
+            queue: .main
+        ) { _ in
+            NotificationCenter.default.post(name: .SettingsWindowDidClose, object: nil)
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didDeminiaturizeNotification,
+            object: window,
+            queue: .main
+        ) { _ in
+            NotificationCenter.default.post(name: .SettingsWindowDidOpen, object: nil)
+        }
+    }
 
     func show() {
+        // FIXED: Simpler, more reliable approach
+        
+        // Step 1: Ensure app activation policy is correct
+        NSApp.setActivationPolicy(.regular)
+        
+        // Step 2: Show the window first
         showWindow(nil)
-        window?.makeKeyAndOrderFront(nil)
+        
+        guard let window = window else { return }
+        
+        // Step 3: Set window properties for proper behavior
+        window.collectionBehavior = [.moveToActiveSpace]
+        window.center()
+        
+        // Step 4: Activate app and bring window to front in sequence
         NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        
+        // Step 5: Short delay then force focus again (without changing window level)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            // Second activation wave - this is the key
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            
+            // Make sure this window is the key window
+            window.makeKey()
+        }
+        
+        // Post notification
+        NotificationCenter.default.post(name: .SettingsWindowDidOpen, object: nil)
+    }
+    
+    override func close() {
+        NotificationCenter.default.post(name: .SettingsWindowDidClose, object: nil)
+        super.close()
     }
 }
