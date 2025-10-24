@@ -141,7 +141,7 @@ final class TipModal {
 
 // MARK: - SwiftUI View
 
-// Reusable capsule glass button (macOS 15+)
+// Reusable capsule glass button (macOS 26+ with fallback)
 struct GlassCapsuleButton: View {
     let title: String
     let action: () -> Void
@@ -155,12 +155,28 @@ struct GlassCapsuleButton: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)
                 .frame(minWidth: 44, alignment: .center)
-                .glassEffect(in: .capsule)
         }
         .buttonStyle(.plain)
+        .modifier(GlassEffectModifier())
+        .scaleEffect(isHovering ? 1.03 : 1.0)
         .animation(.easeOut(duration: 0.12), value: isHovering)
+        .onHover { isHovering = $0 }
         .keyboardShortcut(.defaultAction)
         .accessibilityLabel(Text(title))
+    }
+}
+
+// Glass effect modifier that handles availability properly
+struct GlassEffectModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .glassEffect(in: .capsule)
+        } else {
+            content
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().strokeBorder(.white.opacity(0.10), lineWidth: 1))
+        }
     }
 }
 
@@ -213,8 +229,8 @@ struct TipView: View {
         ZStack {
             Color.clear
 
-            if #available(macOS 15.0, *) {
-                // One container for BOTH shapes; use the SAME spacing value for container & HStack
+            if #available(macOS 26.0, *) {
+                // macOS 26.0+: Use GlassEffectContainer for proper Liquid Glass merging
                 GlassEffectContainer(spacing: splitSpacing) {
                     HStack(spacing: splitSpacing) {
                         // LEFT: pill (icon + text)
@@ -234,6 +250,55 @@ struct TipView: View {
                         // RIGHT: OK chip
                         GlassCapsuleButton(title: "Okay", action: onDismiss)
                     }
+                }
+                .blur(radius: presentation.isVisible ? 0 : 6)
+                .padding(.horizontal, 12)
+                // (animate spacing value changes)
+                .animation(splitAnim, value: splitSpacing)
+                // Drive the "connect → delay → separate" sequence
+                .onChange(of: presentation.isVisible) { _, visible in
+                    if visible {
+                        // 1) connect immediately
+                        splitSpacing = 0
+                        // 2) after a small delay, separate to 16pt
+                        let delay = reduceMotion ? 0 : splitDelay
+                        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                            withAnimation(splitAnim) { splitSpacing = targetSpacing }
+                        }
+                    } else {
+                        // on dismiss, reunite them before/while fading out
+                        withAnimation(.easeOut(duration: 0.33)) { splitSpacing = -50 }
+                    }
+                }
+                .onAppear {
+                    // initial state: connected; if already visible, schedule split
+                    splitSpacing = presentation.isVisible ? 0 : 0
+                    if presentation.isVisible && !reduceMotion {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + splitDelay) {
+                            withAnimation(splitAnim) { splitSpacing = targetSpacing }
+                        }
+                    }
+                }
+            } else if #available(macOS 14.6, *) {
+                // macOS 14.6-25.x: Use materials as fallback (glassEffect requires macOS 26.0+)
+                HStack(spacing: splitSpacing) {
+                    // LEFT: pill (icon + text)
+                    HStack(spacing: 6) {
+                        Image(systemName: "snowflake")
+                            .font(.title3)
+                            .foregroundStyle(.primary)
+                        Text("App icon is up here")
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                    }
+                    .padding(.leading, 12)
+                    .padding(.trailing, 16)
+                    .padding(.vertical, 12)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.10), lineWidth: 1))
+
+                    // RIGHT: OK chip
+                    MaterialCapsuleButton(title: "Okay", action: onDismiss)
                 }
                 .blur(radius: presentation.isVisible ? 0 : 6)
                 .padding(.horizontal, 12)

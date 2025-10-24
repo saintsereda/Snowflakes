@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Initialize launch at login (auto-enables on first run)
         launchAtLogin.refresh()
         // TEMPORARY: For testing tip modal
-//        UserDefaults.standard.removeObject(forKey: "HasShownFirstLaunchTip")
+        UserDefaults.standard.removeObject(forKey: "HasShownFirstLaunchTip")
         // Show tip modal on first launch
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self else { return }

@@ -22,14 +22,14 @@ final class SnowSettings: ObservableObject, Codable {
         static let enabled: Bool = true
         static let intensity: CGFloat = 1.0
         static let windAmplitude: CGFloat = 0
-        static let speedMultiplier: CGFloat = 1.0
-        static let sizeMultiplier: CGFloat = 1.0
+        static let speedMultiplier: CGFloat = 0.7
+        static let sizeMultiplier: CGFloat = 0.7
         static let emissionSpreadDeg: CGFloat = 12
         static let spinBase: CGFloat = 0.25
         static let spinRange: CGFloat = 1.0
-        static let drifting: CGFloat = 1.0  // zigzag/sway power (0 = straight down, 3 = maximum sway)
+        static let drifting: CGFloat = 3.0  // zigzag/sway power (0 = straight down, 3 = maximum sway)
         static let blurEnabled: Bool = false  // Gaussian blur effect
-        static let cutoff: Cutoff = .full
+        static let cutoff: Cutoff = .small150
         static let appearance: Appearance = .overContent
         static let shape: SnowShape = .dots
         static let windDirection: WindDirection = .right
