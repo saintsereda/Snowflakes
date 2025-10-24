@@ -1,9 +1,9 @@
 //
-//  SettingsWindow.swift - Enhanced with guaranteed front window behavior
+//  SettingsWindow.swift - Enhanced with drifting control
 //  Snowflakes
 //
 //  Created by Andrew Sereda on 22.10.2025.
-//  Enhanced to always bring settings window to front
+//  Enhanced with drifting/zigzag parameter control
 //
 
 import SwiftUI
@@ -63,6 +63,7 @@ struct SettingsView: View {
         .onChange(of: s.emissionSpreadDeg) { s.notifyChanged() }
         .onChange(of: s.spinBase) { s.notifyChanged() }
         .onChange(of: s.spinRange) { s.notifyChanged() }
+        .onChange(of: s.drifting) { s.notifyChanged() }  // NEW: Listen to drifting changes
         .onChange(of: s.shape) { s.notifyChanged() }
         .onChange(of: s.cutoff) { s.notifyChanged() }
         .onChange(of: s.appearance) { s.notifyChanged() }
@@ -104,6 +105,10 @@ struct PhysicsSection: View {
             HStack { Text("Wind"); Slider(value: $settings.windAmplitude, in: 0...30) }
             WindDirectionPicker(settings: settings)
             HStack { Text("Speed"); Slider(value: $settings.speedMultiplier, in: 0.2...3.0) }
+            HStack {
+                Text("Drifting")
+                Slider(value: $settings.drifting, in: 0.0...3.0)
+            }
         }
     }
 }
@@ -203,7 +208,7 @@ final class SettingsWindowController: NSWindowController {
     private init() {
         let hosting = NSHostingView(rootView: SettingsView())
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 580),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 600),  // Slightly taller for new control
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false
         )
