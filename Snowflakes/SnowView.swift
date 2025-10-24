@@ -20,7 +20,8 @@ final class SnowView: NSView {
     private var emitters: [CAEmitterLayer] = []
     private var currentWindAmp: CGFloat = 6.0
     private var currentWindDirection: SnowSettings.WindDirection = .right
-    private var currentDrifting: CGFloat = 1.0  // NEW: Track drifting
+    private var currentDrifting: CGFloat = 1.0
+    private var currentBlurEnabled: Bool = false  // NEW: Track blur state
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -95,10 +96,16 @@ final class SnowView: NSView {
             updateWindAnimations()
         }
         
-        // NEW: Update drifting animations if changed
+        // Update drifting animations if changed
         if currentDrifting != settings.drifting {
             currentDrifting = settings.drifting
             updateDriftingAnimations()
+        }
+        
+        // NEW: Update blur if changed
+        if currentBlurEnabled != settings.blurEnabled {
+            currentBlurEnabled = settings.blurEnabled
+            updateBlur()
         }
 
         switch settings.cutoff {
@@ -323,6 +330,25 @@ final class SnowView: NSView {
         }
         
         return driftValues
+    }
+
+    // MARK: - NEW: Blur Effect
+    
+    private func updateBlur() {
+        guard let container = layer else { return }
+        
+        if currentBlurEnabled {
+            // Create Gaussian blur filter
+            let blur = CIFilter(name: "CIGaussianBlur")
+            blur?.name = "snowBlur"
+            blur?.setValue(1.5, forKey: kCIInputRadiusKey)  // Subtle blur radius
+            
+            container.filters = [blur].compactMap { $0 }
+            container.shouldRasterize = false  // Keep GPU rendering
+        } else {
+            // Remove blur
+            container.filters = nil
+        }
     }
 
     // MARK: - Cutoff Mask

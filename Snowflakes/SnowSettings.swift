@@ -27,7 +27,8 @@ final class SnowSettings: ObservableObject, Codable {
         static let emissionSpreadDeg: CGFloat = 12
         static let spinBase: CGFloat = 0.25
         static let spinRange: CGFloat = 1.0
-        static let drifting: CGFloat = 1.0  // New: zigzag/sway power (0 = straight down, 3 = maximum sway)
+        static let drifting: CGFloat = 1.0  // zigzag/sway power (0 = straight down, 3 = maximum sway)
+        static let blurEnabled: Bool = false  // Gaussian blur effect
         static let cutoff: Cutoff = .full
         static let appearance: Appearance = .overContent
         static let shape: SnowShape = .dots
@@ -46,7 +47,8 @@ final class SnowSettings: ObservableObject, Codable {
     @Published var emissionSpreadDeg: CGFloat = Defaults.emissionSpreadDeg
     @Published var spinBase: CGFloat = Defaults.spinBase
     @Published var spinRange: CGFloat = Defaults.spinRange
-    @Published var drifting: CGFloat = Defaults.drifting  // New drifting parameter
+    @Published var drifting: CGFloat = Defaults.drifting
+    @Published var blurEnabled: Bool = Defaults.blurEnabled  // Blur toggle
 
     enum Cutoff: String, Codable, CaseIterable { case full, small150 }
     enum Appearance: String, Codable, CaseIterable { case overContent, desktopOnly }
@@ -80,6 +82,7 @@ final class SnowSettings: ObservableObject, Codable {
         spinBase = Defaults.spinBase
         spinRange = Defaults.spinRange
         drifting = Defaults.drifting
+        blurEnabled = Defaults.blurEnabled
         cutoff = Defaults.cutoff
         appearance = Defaults.appearance
         shape = Defaults.shape
@@ -90,7 +93,7 @@ final class SnowSettings: ObservableObject, Codable {
     }
 
     // Persist
-    private static let defaultsKey = "SnowSettings.swiftui.v2"  // Updated version for new parameter
+    private static let defaultsKey = "SnowSettings.swiftui.v3"  // Updated version for blur parameter
 
     func notifyChanged() {
         saveToDefaults()
@@ -116,7 +119,8 @@ final class SnowSettings: ObservableObject, Codable {
         var enabled: Bool
         var intensity: Double; var windAmplitude: Double; var speedMultiplier: Double
         var sizeMultiplier: Double; var emissionSpreadDeg: Double; var spinBase: Double; var spinRange: Double
-        var drifting: Double  // New parameter
+        var drifting: Double
+        var blurEnabled: Bool
         var cutoff: Cutoff; var appearance: Appearance; var shape: SnowShape; var windDirection: WindDirection
     }
     private var snapshot: Snap {
@@ -125,6 +129,7 @@ final class SnowSettings: ObservableObject, Codable {
             intensity: intensity.d, windAmplitude: windAmplitude.d, speedMultiplier: speedMultiplier.d,
             sizeMultiplier: sizeMultiplier.d, emissionSpreadDeg: emissionSpreadDeg.d, spinBase: spinBase.d, spinRange: spinRange.d,
             drifting: drifting.d,
+            blurEnabled: blurEnabled,
             cutoff: cutoff, appearance: appearance, shape: shape, windDirection: windDirection
         )
     }
@@ -133,6 +138,7 @@ final class SnowSettings: ObservableObject, Codable {
         intensity = p.intensity.cg; windAmplitude = p.windAmplitude.cg; speedMultiplier = p.speedMultiplier.cg
         sizeMultiplier = p.sizeMultiplier.cg; emissionSpreadDeg = p.emissionSpreadDeg.cg; spinBase = p.spinBase.cg; spinRange = p.spinRange.cg
         drifting = p.drifting.cg
+        blurEnabled = p.blurEnabled
         cutoff = p.cutoff; appearance = p.appearance; shape = p.shape; windDirection = p.windDirection
     }
 

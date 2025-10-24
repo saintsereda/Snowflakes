@@ -63,7 +63,8 @@ struct SettingsView: View {
         .onChange(of: s.emissionSpreadDeg) { s.notifyChanged() }
         .onChange(of: s.spinBase) { s.notifyChanged() }
         .onChange(of: s.spinRange) { s.notifyChanged() }
-        .onChange(of: s.drifting) { s.notifyChanged() }  // NEW: Listen to drifting changes
+        .onChange(of: s.drifting) { s.notifyChanged() }
+        .onChange(of: s.blurEnabled) { s.notifyChanged() }  // NEW: Listen to blur changes
         .onChange(of: s.shape) { s.notifyChanged() }
         .onChange(of: s.cutoff) { s.notifyChanged() }
         .onChange(of: s.appearance) { s.notifyChanged() }
@@ -122,6 +123,25 @@ struct VisualsSection: View {
             HStack { Text("Emission Spread (°)"); Slider(value: $settings.emissionSpreadDeg, in: 0...60) }
             HStack { Text("Spin"); Slider(value: $settings.spinBase, in: 0.0...3.0) }
             HStack { Text("Spin Variability"); Slider(value: $settings.spinRange, in: 0.0...4.0) }
+            
+            // Blur toggle
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Motion Blur")
+                        .font(.system(size: 13))
+                    Text("Add slight blur for softer, more realistic look")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Toggle("", isOn: $settings.blurEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            .padding(.vertical, 4)
+            
             ShapePicker(settings: settings)
         }
     }
@@ -208,7 +228,7 @@ final class SettingsWindowController: NSWindowController {
     private init() {
         let hosting = NSHostingView(rootView: SettingsView())
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 600),  // Slightly taller for new control
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 640),  // Increased for blur toggle
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false
         )
