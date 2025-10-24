@@ -1,8 +1,9 @@
 //
-//  AppDelegate.swift
+//  AppDelegate.swift - Enhanced with dock icon management and tip modal
 //  Snowflakes
 //
 //  Created by Andrew Sereda on 22.10.2025.
+//  Enhanced to show dock icon when settings window is open and tip modal on first launch
 //
 
 import Cocoa
@@ -22,10 +23,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // App state
     private let settings = SnowSettings.shared
     private let windows  = WindowManager()
+    private let launchAtLogin = LaunchAtLogin.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         buildStatusMenu()
+
+        // Initialize launch at login (auto-enables on first run)
+        launchAtLogin.refresh()
+        // TEMPORARY: For testing tip modal
+        UserDefaults.standard.removeObject(forKey: "HasShownFirstLaunchTip")
+        // Show tip modal on first launch
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self else { return }
+            TipModal.showIfNeeded(below: self.statusItem)
+        }
 
         // Create overlays for all screens and apply current settings
         windows.apply(settings)
@@ -38,7 +50,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let self else { return }
             self.windows.apply(self.settings)
             self.refreshMenuChecks()
-            self.applyStatusIcon(isActive: self.settings.enabled) // keep icon in sync
+            self.applyStatusIcon(isActive: self.settings.enabled)
+        }
+
+        // ADDED: Listen for settings window state changes
+        NotificationCenter.default.addObserver(
+            forName: .SettingsWindowDidOpen,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.showDockIcon()
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .SettingsWindowDidClose,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.hideDockIcon()
+        }
+    }
+
+    // MARK: - Dock Icon Management
+
+    private func showDockIcon() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func hideDockIcon() {
+        // Small delay to ensure window closing animation completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            NSApp.setActivationPolicy(.accessory)
         }
     }
 
@@ -49,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         if let button = statusItem.button {
             button.imagePosition = .imageOnly
-            applyStatusIcon(isActive: settings.enabled) // initial icon
+            applyStatusIcon(isActive: settings.enabled)
             button.toolTip = settings.enabled ? "Snowfall: On" : "Snowfall: Off"
         }
 
@@ -95,6 +136,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
+        // Launch at Login menu item
+        let launchAtLoginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launchAtLoginItem.target = self
+        menu.addItem(launchAtLoginItem)
+
+        menu.addItem(.separator())
+
         // Quit
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
@@ -121,6 +169,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         overContentItem.state  = (settings.appearance == .overContent) ? .on : .off
         desktopOnlyItem.state  = (settings.appearance == .desktopOnly) ? .on : .off
 
+        // Launch at Login check
+        if let launchAtLoginItem = statusItem.menu?.item(withTitle: "Launch at Login") {
+            launchAtLoginItem.state = launchAtLogin.isEnabled ? .on : .off
+        }
+
         // Keep tooltip current
         statusItem.button?.toolTip = settings.enabled ? "Snowfall: On" : "Snowfall: Off"
     }
@@ -140,13 +193,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                   pointSize: 18,
                                   weight: .regular,
                                   desc: desc) {
-            image.isTemplate = true // enables proper monochrome/tint in the menu bar
+            image.isTemplate = true
             statusItem.button?.image = image
-            statusItem.button?.title = "" // remove any fallback text
+            statusItem.button?.title = ""
         } else {
-            // Fallback if SF Symbols are unavailable for some reason
             statusItem.button?.image = nil
-            statusItem.button?.title = isActive ? "❄︎" : "⛔︎"
+            statusItem.button?.title = isActive ? "❄️" : "⛔️"
         }
     }
 
@@ -168,7 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleSnow() {
         settings.enabled.toggle()
         settings.notifyChanged()
-        applyStatusIcon(isActive: settings.enabled) // update icon immediately on toggle
+        applyStatusIcon(isActive: settings.enabled)
     }
 
     @objc private func setSmallWindow() {
@@ -195,7 +247,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         SettingsWindowController.shared.show()
     }
 
+    @objc private func toggleLaunchAtLogin() {
+        launchAtLogin.toggle()
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let SettingsWindowDidOpen = Notification.Name("SettingsWindowDidOpen")
+    static let SettingsWindowDidClose = Notification.Name("SettingsWindowDidClose")
 }

@@ -1,8 +1,9 @@
 //
-//  SnowSettings.swift
+//  SnowSettings.swift - Enhanced with drifting/zigzag control
 //  Snowflakes
 //
 //  Created by Andrew Sereda on 22.10.2025.
+//  Enhanced with drifting parameter for natural zigzag motion
 //
 
 import SwiftUI
@@ -21,12 +22,14 @@ final class SnowSettings: ObservableObject, Codable {
         static let enabled: Bool = true
         static let intensity: CGFloat = 1.0
         static let windAmplitude: CGFloat = 0
-        static let speedMultiplier: CGFloat = 1.0
-        static let sizeMultiplier: CGFloat = 1.0
+        static let speedMultiplier: CGFloat = 0.7
+        static let sizeMultiplier: CGFloat = 0.7
         static let emissionSpreadDeg: CGFloat = 12
         static let spinBase: CGFloat = 0.25
         static let spinRange: CGFloat = 1.0
-        static let cutoff: Cutoff = .full
+        static let drifting: CGFloat = 3.0  // zigzag/sway power (0 = straight down, 3 = maximum sway)
+        static let blurEnabled: Bool = false  // Gaussian blur effect
+        static let cutoff: Cutoff = .small150
         static let appearance: Appearance = .overContent
         static let shape: SnowShape = .dots
         static let windDirection: WindDirection = .right
@@ -44,6 +47,8 @@ final class SnowSettings: ObservableObject, Codable {
     @Published var emissionSpreadDeg: CGFloat = Defaults.emissionSpreadDeg
     @Published var spinBase: CGFloat = Defaults.spinBase
     @Published var spinRange: CGFloat = Defaults.spinRange
+    @Published var drifting: CGFloat = Defaults.drifting
+    @Published var blurEnabled: Bool = Defaults.blurEnabled  // Blur toggle
 
     enum Cutoff: String, Codable, CaseIterable { case full, small150 }
     enum Appearance: String, Codable, CaseIterable { case overContent, desktopOnly }
@@ -76,6 +81,8 @@ final class SnowSettings: ObservableObject, Codable {
         emissionSpreadDeg = Defaults.emissionSpreadDeg
         spinBase = Defaults.spinBase
         spinRange = Defaults.spinRange
+        drifting = Defaults.drifting
+        blurEnabled = Defaults.blurEnabled
         cutoff = Defaults.cutoff
         appearance = Defaults.appearance
         shape = Defaults.shape
@@ -86,7 +93,7 @@ final class SnowSettings: ObservableObject, Codable {
     }
 
     // Persist
-    private static let defaultsKey = "SnowSettings.swiftui.v1"
+    private static let defaultsKey = "SnowSettings.swiftui.v3"  // Updated version for blur parameter
 
     func notifyChanged() {
         saveToDefaults()
@@ -112,6 +119,8 @@ final class SnowSettings: ObservableObject, Codable {
         var enabled: Bool
         var intensity: Double; var windAmplitude: Double; var speedMultiplier: Double
         var sizeMultiplier: Double; var emissionSpreadDeg: Double; var spinBase: Double; var spinRange: Double
+        var drifting: Double
+        var blurEnabled: Bool
         var cutoff: Cutoff; var appearance: Appearance; var shape: SnowShape; var windDirection: WindDirection
     }
     private var snapshot: Snap {
@@ -119,6 +128,8 @@ final class SnowSettings: ObservableObject, Codable {
             enabled: enabled,
             intensity: intensity.d, windAmplitude: windAmplitude.d, speedMultiplier: speedMultiplier.d,
             sizeMultiplier: sizeMultiplier.d, emissionSpreadDeg: emissionSpreadDeg.d, spinBase: spinBase.d, spinRange: spinRange.d,
+            drifting: drifting.d,
+            blurEnabled: blurEnabled,
             cutoff: cutoff, appearance: appearance, shape: shape, windDirection: windDirection
         )
     }
@@ -126,6 +137,8 @@ final class SnowSettings: ObservableObject, Codable {
         enabled = p.enabled
         intensity = p.intensity.cg; windAmplitude = p.windAmplitude.cg; speedMultiplier = p.speedMultiplier.cg
         sizeMultiplier = p.sizeMultiplier.cg; emissionSpreadDeg = p.emissionSpreadDeg.cg; spinBase = p.spinBase.cg; spinRange = p.spinRange.cg
+        drifting = p.drifting.cg
+        blurEnabled = p.blurEnabled
         cutoff = p.cutoff; appearance = p.appearance; shape = p.shape; windDirection = p.windDirection
     }
 
